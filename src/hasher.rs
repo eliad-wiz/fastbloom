@@ -47,21 +47,33 @@ impl RandomDefaultHasher {
     }
 }
 
+#[cfg(feature = "random_seed")]
 impl Default for RandomDefaultHasher {
     #[inline]
     fn default() -> Self {
-        let mut seed = [0u8; 16];
-        #[cfg(not(feature = "rand"))]
-        {
-            getrandom::fill(&mut seed).expect("Unable to obtain entropy from OS/Hardware sources");
-        }
         #[cfg(feature = "rand")]
         {
+            let mut seed = [0u8; 16];
             use rand::RngCore;
             rand::rng().fill_bytes(&mut seed);
+            return Self::seeded(&seed);
         }
+        #[cfg(not(feature = "rand"))]
+        {
+            let mut seed = [0u8; 16];
+            getrandom::fill(&mut seed).expect("Unable to obtain entropy from OS/Hardware sources");
+            return Self::seeded(&seed);
+        }
+    }
+}
 
-        Self::seeded(&seed)
+/// `DefaultHasher` is seeded with a zero seed by default when `random_seed` is not enabled.
+/// seed can be overridden by calling `seeded` or `hasher` on the builder.
+#[cfg(not(feature = "random_seed"))]
+impl Default for RandomDefaultHasher {
+    #[inline]
+    fn default() -> Self {
+        Self::seeded(&[0; 16])
     }
 }
 
